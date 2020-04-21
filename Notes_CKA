@@ -1,0 +1,419 @@
+#kubernetes course for CKA:
+#====================================
+#////////////////////////////////////
+#////////////////////////////////////
+
+
+####################
+#2.08
+###################
+
+		- 2 kinds of nodes, master adn worker nodes
+		- master nodes: ETCD, Kube-apiserver, Kube Controller Manager, Kube-Scheduler
+		- Worker nodes: kunelt, kube proxy, Container running engine 
+
+
+#####################
+#2.18 POD using YAML file
+#####################
+
+#yaml structure to define a POD
+apiVersion: v1 
+kind: POD
+metadata:
+	name: myapp-pod
+	labels:
+		type: backend
+		app: myapp
+
+spec:
+	containers:
+		- name: name
+		  image: name_of_docker_image_in_docker_repo
+
+#command to create a POD using a yaml file.
+kubectl create -f pod-definition.yml
+
+#grt pods available
+kubectl get pods
+kubectl describe pod pod_name
+
+
+########################
+#2.25 Recap Replicas set
+#########################
+
+# Replication controller 
+#	-provide HA running multiple instances of a single pod
+# 	-Ensures that the especified number of pods runs in all the time even if it is a single one (creating a new pod if the original fails)
+#  - Create multiple pods to balance loads
+#	- the old way of replication
+
+# Replica Set
+#	- the new way of replication, it is the recomended one. The same features of replication controller applies for this one.
+
+#CREATE REPLICATION CONTROLLER
+#vi rc-definition.yml
+apiVersion v1
+kind: ReplicationController
+metadata:
+	name: myapp-rc
+	labels:
+		app: nginx
+		type: backend
+spec:
+	template:
+		metadata:
+			name: myapp-pod
+			labels:
+				app: nginx
+				type: backend
+		spec:
+			containers:
+				name: ngnix-contrainer
+				image: nginx
+	replicas: 3
+
+#commands
+kubectl create -f file_name.yml
+kubectl get replicationcontroller
+kubectl get pods
+
+#CREATE REPLICASET
+#vi replicaset-definition.yml
+apiVersion apps/v1
+kind: ReplicaSet
+metadata:
+	name: myapp-rs
+	labels:
+		app: nginx
+		type: backend
+spec:
+	template:
+		metadata:
+			name: myapp-pod
+			labels:
+				app: nginx
+				type: backend
+		spec:
+			containers:
+				name: ngnix-contrainer
+				image: nginx
+	replicas: 3
+	selector: #help indentify wich pod fall into it, can also manage pod created before the ones created with replica set. is one of the mayor difference between rc and rs.
+		matchLabels:
+			type: front-end
+
+#commands
+kubectl create -f file_name.yml
+kubectl get replicaset
+kubectl get pods
+kubectl replace -f file_name.yml
+kubectl scale -replicas=6 -f file_name.yml
+kubectl edit rs replica-set-name
+kubectl sacale --replicas=6 rs/replicasetname
+kubectl get rs rsname -o yaml > file_name_output.yml
+
+
+
+######################
+#28 deployments
+######################
+
+#CREATE Deployment
+#vi deployment-definition.yml
+apiVersion apps/v1
+kind: Deployment
+metadata:
+	name: myapp-deployment
+	labels:
+		app: myapp
+		type: backend
+spec:
+	template:
+		metadata:
+			name: myapp-pod
+			labels:
+				app: nginx
+				type: backend
+		spec:
+			containers:
+				name: ngnix-contrainer
+				image: nginx
+	replicas: 3
+	selector: #help indentify wich pod fall into it, can also manage pod created before the ones created with replica set. is one of the mayor difference between rc and rs.
+		matchLabels:
+			type: front-end
+
+#COMMANDS
+kubectl create -f file_name
+kubectl get deployments
+kubectl get replicasets
+kubectl get pods
+kubectl get all
+
+
+######################
+#EXAM TIP
+######################
+
+#Create an NGINX Pod
+kubectl run --generator=run-pod/v1 nginx --image=nginx
+
+#Generate POD Manifest YAML file (-o yaml). Don't create it(--dry-run)
+kubectl run --generator=run-pod/v1 nginx --image=nginx --dry-run -o yaml
+
+#Create a deployment
+kubectl create deployment --image=nginx nginx
+
+#Generate Deployment YAML file (-o yaml). Don't create it(--dry-run)
+kubectl create deployment --image=nginx nginx --dry-run -o yaml
+
+#Generate Deployment YAML file (-o yaml). Don't create it(--dry-run) with 4 Replicas (--replicas=4)
+kubectl create deployment --image=nginx nginx --dry-run -o yaml > nginx-deployment.yaml
+Save it to a file, make necessary changes to the file (for example, adding more replicas) and then create the deployment.
+
+
+
+#####################
+#31 NAMESAPCES
+#####################
+
+#namescapes automaticlly created by kubernetes
+
+#	- kube-system: dns service, natural installation, this is a cluster startup 
+#	- Default: the one where we were working til now
+#	- kube-public: resources should be useas for all user
+
+# you can create your own custom namespaces for specific environments
+# You can assign quotas to each namespace
+
+#DNS
+# Objects into a same namespace can reffer each other objects by using the simple name of service
+# Object from a different name space can reach an object by using the format: "db-service.dev.svc.cluster.local" 
+#                                                                                   |      |   |____      |_______
+#------------------------------------------------------------------------->   [service] [namespace][sub domain]  [    domain  ]
+#when a service is created a dns entry is created in this format
+
+
+#COMMANDS
+kubectl get pods --namescpace=kube-system
+kubectl create -f file_name --namespace=namespace_name
+#also you can add the 'namespace: namespaces_name' to the metadata directory on the yml file
+
+#create name space using a yml file
+#vi namespace-conf.yml
+apiVersion: v1
+kind: Namespace
+metadata:
+	name: dev
+
+kubectl create -f namesoace-conf.yml
+#create namespace using a command
+kubectl create namespace dev
+#change the current namespace
+kubectl config set-context $(kubectl config context) --namesoace=dev
+#See all pods in all namespaces
+kubectl get pods --all-namespaces
+
+#QUOTAS
+#set quotas to namespaces
+#vi compute-quota.yml
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+	name: compute-quota
+	namespace: dev
+spec:
+	hard:
+		pods:"10"
+		requests.cpu: "4"
+		request.memory: 5Gi
+		limits.cpu: "10"
+		limits.memory: 10Gi
+#commands
+kubectl create -f compute-quota.yml
+
+
+
+
+####################
+#33 SERVICES
+####################
+
+#connects applications together with other applications and users
+# one of the usages is lisent to a port in the node and forward that traffic to a pod (nodeporservice)
+
+#serices types
+#	- nodeport
+#	- clusterip (servers create a virtual ip iside cluster to enable connunication)
+#	- loadbalancer (provition loadbalancer por a cluster)
+
+
+#NodePort can oly be in default valid range 30000-32767
+#   |----------- -------------------------------------------------------------                          
+#   |port 30008 |                           _____________________             |
+#   |3-nodeport |                          |       POD           |            |
+#   |-----------                           |                     |            |
+#   |      |                2-port         |                     |            |
+#   |      |        ________ ______        |      1- target port |            |
+#   |      |_______|Service |port80|       | _____________       |            |
+#   |              |10.106.1.12    |       |             |       |            |
+#   |               -------- ------        | port 80     |       |            |
+#   |                           |          | 10.244.0.2  |       |            |
+#   |                           |_________ |_____________|_______|            |
+#   |_________________________________________________________________________
+#		NODE
+
+#SERVICE DEFINITION
+#vi service-definition.yml
+apiVersion: v1
+kind: Service
+metadata:
+	name: myapp-service
+spec:
+	type: NodePort
+	ports: 
+		- targetPort:80
+		  port: 80
+		  nodePort: 30008
+	selectror:
+		app: myapp #label
+		type: front-end #lablel
+
+
+
+#############################
+#34 services cluster ip
+#############################
+
+#provide single interface for otner pods to acces the service
+
+#vi servoce-clusterip.yml
+apiVersion: v1
+kind: Service
+metadata:
+	name:backend
+spec:
+	type: ClusterIp
+	ports:
+		- targetPort: 80
+		  port: 80
+	selector:
+		app: myapp
+		type: back-end
+
+
+
+##############################
+#CErtification TIP
+#############################
+
+#Service
+#Create a Service named redis-service of type ClusterIP to expose pod redis on port 6379
+#
+#kubectl expose pod redis --port=6379 --name redis-service --dry-run -o yaml
+#
+#(This will automatically use the pod's labels as selectors)
+#
+#Or
+#
+#kubectl create service clusterip redis --tcp=6379:6379 --dry-run -o yaml  (This will not use the pods labels as selectors, instead it will assume selectors as app=redis. You cannot pass in selectors as an option. So it does not work very well if your pod has a different label set. So generate the file and modify the selectors before creating the service)
+#
+#
+#
+#Create a Service named nginx of type NodePort to expose pod nginx's port 80 on port 30080 on the nodes:
+#
+#kubectl expose pod nginx --port=80 --name nginx-service --dry-run -o yaml
+#
+#(This will automatically use the pod's labels as selectors, but you cannot specify the node port. You have to generate a definition file and then add the node port in manually before creating the service with the pod.)
+#
+#Or
+#
+#kubectl create service nodeport nginx --tcp=80:80 --node-port=30080 --dry-run -o yaml
+#
+#(This will not use the pods labels as selectors)
+#
+#Both the above commands have their own challenges. While one of it cannot accept a selector the other cannot accept a node port. I would recommend going with the `kubectl expose` command. If you need to specify a node port, generate a definition file using the same command and manually input the nodeport before creating the service.
+
+
+##################
+#Manual scheduling
+##################
+
+# when do not have a scheduler yo have to add the nodeName: property spec to assingn a node to the pod
+#ex
+apiVersion: v1
+kind: Pod
+metadata:
+	name: nginx
+	labels:
+		name: nginx
+spec:
+	containers:
+	- name: nginx
+	  image: nginx
+	  ports:
+	  	- containerPort:8080
+	nodeName: Node1
+#this option is only possble when the node is no created yet.
+
+#this is helpul when you have a pod in pending state due to no scheduler is configured or active. In this case an option is to add a node to the pod manualy.
+
+
+#if the pod is already created we hacve this options.
+#1.- create a banding object
+#pod-bind-definiction.yml
+apiVersion: v1
+kind: Binding
+metadat:
+	name: nginx
+target:
+	apiVersion: v1
+	kind: Node
+	name: node02
+
+
+
+######################
+#LAbels and selectors
+###################
+
+#labels an selector is an  standard to group ojects
+
+
+
+#####################
+#Taints and Toleeation
+#####################
+
+
+#Taints are set on nodes (restruction for pod schedule)
+#Tolerants are set on pods
+#taints and toletation are are just set to limit nodes to be deploy an specific node.
+
+#give taint to a node
+kubectl taint nodes node-name key=value:taint-effect<NoShedule, PreferedNoSchedule and NoExecute>
+
+#give toleration to a pod
+apiVersion: v1
+kind:
+metadata:
+	name: podtolerant
+spec:
+	containers:
+		- name ngnix-contrainer
+		  image nginx
+	tolerations:
+		- key: "app" #needs to be encoded in double quotes
+		  operator: "equal"
+		  vlue: "blue"
+		  effect: "NoSchedule"
+
+
+#delete all taints from a node
+kubectl patch node node1.compute.internal -p '{"spec":{"taints":[]}}'
+
+#get pod in yml format
+kubectl get pod podname -0 yaml
+
