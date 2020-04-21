@@ -379,7 +379,7 @@ target:
 #LAbels and selectors
 ###################
 
-#labels an selector is an  standard to group ojects
+#labels and selector is an  standard to group ojects
 
 
 
@@ -416,4 +416,69 @@ kubectl patch node node1.compute.internal -p '{"spec":{"taints":[]}}'
 
 #get pod in yml format
 kubectl get pod podname -0 yaml
+
+##################
+#49-Node selector
+##################
+whe we have nodes with more capabilities that the others and we hace pods that demans more rources, we can chose where the pod is located using node selectors.
+
+<code>
+apiVersion:
+kind: Pod
+metadata:
+	name: myapp-pod
+spec:
+	containers:
+	 - name: data-processor
+	   image: data-processor
+	nodeSelector:
+		size: Large #Large is a lable in the node that makes selector identify it
+</cosw>
+
+How to lable a node
+kubectl label nodes <node-name> <label-key>=<label-value>
+kubectl label nodes node-1 size=Large
+
+
+NodeSelector has its own limitation, for example it can´t achive tasks like schedule a pod in Large or Medium nodes, or schedule pods in non small nodes. That is something that you can do with NodeAffinity
+
+
+###############
+#NodeAffinity
+###############
+
+
+<code>
+apiVersion:
+kind: pod
+
+metadata:
+	name: myapp-pod
+spec:
+	containers:
+	 - name: data-processor
+	   imae: data-processor
+
+	affinity:
+		nodeAffinity:
+			requireDuringSchedulingIgnoreDuringExecution:
+				nodeSelectorTerms:
+				- matchExpressions:
+					- key: size
+					  operator: In|NotIn|Exists (this operator will check that the key size exists in the node, amd will not check the values)
+					  values:
+					  -Large
+					  -Medium
+</code>
+
+
+Node Affinity Types
+available:
+requireDuringSchedulingIgnoreDuringExecution
+preferedDuringSchedulingIgnoreDuringExecution
+
+
+Planned: I doesn't already exists
+requireDuringSchedulingRequireDuringExecution
+
 
