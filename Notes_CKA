@@ -461,7 +461,7 @@ spec:
 
 	affinity:
 		nodeAffinity:
-			requireDuringSchedulingIgnoreDuringExecution:
+			requiredDuringSchedulingIgnoredDuringExecution:
 				nodeSelectorTerms:
 				- matchExpressions:
 					- key: size
@@ -480,5 +480,95 @@ preferedDuringSchedulingIgnoreDuringExecution
 
 Planned: I doesn't already exists
 requireDuringSchedulingRequireDuringExecution
+
+
+
+########################################
+Taints and tolerations vs node affinity
+########################################
+
+we can use bouth concepts to ensute that only the pods that we want to place in an specific node were placed and no other.
+
+taints and tolerations: we can set restrictions to the nodes in order to accept only some labeled pods
+node affinity: we can set lables to nodes to place in an specific node a pod
+
+#####################
+Resource Limits
+####################
+when a pod creation request is send the shceduler ensures that the available nodes have the enought resources to place the pod
+but when there are not resouces on any node, the pod remains in pennding state. You can check the reason of teh pending state on the 
+pod events.
+
+Resources
+by default kubernetes asume that a pod requests needs the follow amount of resources.the minimum amount requested for a container
+cpu= 0.5
+mem= 256M
+disk=  
+
+Limits
+by default kubernetes set a limit of a pod resources unless you define that values. The default limits are as follow.
+VCPU= 1
+mem-512Mi
+
+
+<code>
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod_resources
+spec:
+  containers:
+    - name: simple-webapp-color
+      image: simple-webapp-color
+      ports:
+        - containerPort: 8080
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: 1
+    limits:
+      memory: "2Gi"
+      cpu: 2 
+</code>
+
+define default resource rquirements and limits
+
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: mem-limit-range
+spec:
+  limits:
+  - default:
+      memory: 512Mi
+    defaultRequest:
+      memory: 256Mi
+    type: Container
+
+
+##########################
+Quick note on editing pods
+##########################
+
+
+You cant edit soecification of an existing pod other than:
+spec.containers[*].image
+
+spec.initContainers[*].image
+
+spec.activeDeadlineSeconds
+
+spec.tolerations
+
+1st option
+kubectl edit pod <pod name>
+2nd option
+kubectl get pod webapp -o yaml > my-new-pod.yaml
+
+You can edit a POD created by a deployment because the deployment deletes teh pod and recreated it each time you do a modification.
+kubectl edit deployment my-deployment
+
+
+#####################
 
 
