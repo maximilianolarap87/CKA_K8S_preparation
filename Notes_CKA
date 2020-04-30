@@ -571,4 +571,32 @@ kubectl edit deployment my-deployment
 
 #####################
 
+Daemons Sets
+
+are like replica sets it ensures that one copy of one pod is present on each node, if you remove 1 node then 1 pod od the deployment is going to be removed
+Use cases
+monitoring agent and log collector
+
+
+Daemon set definition
+
+vi daemon-set-definition.yml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: monitoring-agent
+spec:
+  selector:
+    matchLabels:
+      app: monitoring-agent
+    template:
+      metadata:
+        labels:
+	  app: monitoring-agent
+    spec:
+        containers:
+	  - name: monitoring-agent
+	    image monitoring-agent
+
+
 
