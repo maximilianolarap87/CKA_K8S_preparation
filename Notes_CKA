@@ -598,5 +598,128 @@ spec:
 	  - name: monitoring-agent
 	    image monitoring-agent
 
+####################
+STATIC PODS
+###################
+
+kubelet can manage a single node by his own
+
+but as we dont have a mster node or a kubernetes cluster, we can use the kubectl api. so how can we read a pod definition file?
+ we can configura the kublet to read a pod definition file inside the directory.
+ 
+ /etc/kubernetes/manifests
+ 
+ the kubelet periodically read the files on that directory and create the pods, not only create them, it can ensute that
+ the pod maintains alive, and if the are not it re create them. if any change is made to the definition file, the kubelet
+ re create them, if you delete any definition file, the kublet deletes the pod.
+ 
+ this pods are named static pods.
+ 
+ 
+ the kubelet directoy for static pods could be any directory, and it has to be configure on the kubelet is as an option while your
+ are running the service on service file kubelet.service (/system.slice/kubelet.service)
+ 
+ --pod-manidest-path=/etc/kubernetes/manifests
+ 
+ another way
+ 
+ you can create a configuration file and define in config option
+ 
+ --config=kubeconfig.yml
+ 
+ withe following content
+ 
+ staticPodPath: /etc/kubernetes/manifests
+ 
+ You can create static pod on kublets that are part of a cluster, you can also see those pods listed by kube-api-server, because
+ kubelet create a mirror of the pods configuration and sends it to the kube-api-server. but we can only see the statics pods
+ we cant edit em using the kube-apiserver. The olnly way to do is the one that we already see.
+ 
+ 
+ 
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    component: busybox
+  name: static-busybox
+spec:
+  containers:
+  - name: static-busybox
+    image: busybox
+    command: ['sh', '-c', 'sleep 100']
+    resources:
+      requests:
+        cpu: 250m
+  hostNetwork: true
 
 
+###################
+MULTI SCHEDULING
+###################
+
+You can create your own scheduler diffeternt than the kube-schduler
+
+to create a new sheduler
+
+dowload the binary, or the source code and compile your self
+wget https://storage.googleapis.com/kubernetes-release/release/v1.12.0/bin.linux.kube-scheduler
+
+run as a service with a set of options
+
+-sheduler-name=default-sheduler #if this option is not present the name "default-scheduler" is set by default
+
+is very important to difference the two shedulers by sheduler name
+
+-sheduler-name=my-custom-sheduler
+
+
+Deploy Aditional Scheduler - kubeadm
+
+on the definition files of static pods we can find the kube-scheduler one.
+
+
+DEFAULT SCHEDULER
+/etc/kubernetes/manifests/kube-scheduler.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kube-scheduler
+  namespace: kube-system
+spec:
+  containers:
+    - comand:
+      - kube-scheduler #name of the binary
+      - --address=127.0.0.1
+      - --kubeconfig=/etc/kubernetes/scheduler.conf
+      - --leader-elect=true
+      image: k8s.gre.io/kube-schduler-amd64:v1.11.3
+      name: kube-scheduler
+      
+CUSTOM SCHEDULER
+my-custom-scheduler.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-custom-scheduler
+  namespace: kube-system
+ spec:
+   containers:
+   - command:
+     - kube-scheduler
+     - --address=127.0.0.1
+     - --/etc/kubernetes/scheduler.conf
+     - --leader-elect=true
+     - --scheduler-name=my-custom-scheduler
+     - --lock-object-name=my-custom-scheduler
+     image: k8s.gre.io/kube-schduler-amd64:v1.11.3
+     name: kube-scheduler
+     
+    
+    in case you dont have multiple masters and you want to have multiple shedulers, your have to set the leader-elet option to false
+    
+    In case you have multiple masters and you want to have multiple shcedulers, you must set the leader-elect option to true and add
+    an aditional parameter lock-object-name=my-custom-schdeuler with the name of the other schedulers
+
+
+to create a pod using the new sheduler you must add the schedulerName option in the pods definition file in the spec section
