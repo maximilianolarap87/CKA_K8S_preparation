@@ -723,3 +723,46 @@ metadata:
 
 
 to create a pod using the new sheduler you must add the schedulerName option in the pods definition file in the spec section
+
+
+################################
+MONITOR ON KUBERNETES
+#########################
+
+K8s dosent come with a monitor solution for monitoring. but there are many opensource option for that porpouse
+-metric server
+- prometheus
+- elastick stack
+-data dog
+-dynatrace
+
+METRIC SERVER is the most used monitoring soluton after HEAPSTER were deprecated. The data is not allocated in disk space, it is stored just in memory
+so this is a only memory slutiopn.
+
+kublet has a subsys named Cadvisor that semds information from pods and nodes to metric server
+
+to enable it if your are using minikube you can use
+
+minikube addons enable metric-server
+
+if you are using any other arch
+
+git clone metric-server-url
+kubectl create -f deplou/1.8+/
+
+ you can viewe cluster performance by command:
+ 
+ kubectl top node
+ #this will show us the memory and cpu consumtion from nodes
+ 
+ kubectl top pod
+ #statics from pods
+ 
+ 
+ 
+ 
+  
+
+
+
+
